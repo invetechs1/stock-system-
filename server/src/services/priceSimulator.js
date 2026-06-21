@@ -1,5 +1,8 @@
 import { db } from '../db/index.js';
 import { round2 } from '../utils/money.js';
+import { marketEvents, TICK_EVENT } from './events.js';
+import { processPendingOrders } from './orderService.js';
+import { listAllStocks } from './stockService.js';
 
 const allStocks = db.prepare('SELECT symbol, price, volatility FROM stocks');
 const updatePrice = db.prepare(
@@ -7,7 +10,7 @@ const updatePrice = db.prepare(
 );
 
 // Random-walk every stock by a small percentage drawn from its volatility.
-const tickOnce = db.transaction(() => {
+const walkPrices = db.transaction(() => {
   const now = Date.now();
   for (const s of allStocks.all()) {
     const drift = (Math.random() - 0.5) * 2 * s.volatility;
@@ -15,6 +18,14 @@ const tickOnce = db.transaction(() => {
     updatePrice.run(next, now, s.symbol);
   }
 });
+
+// A full tick: move prices, fill any triggered limit orders, then broadcast the
+// fresh quotes to SSE subscribers.
+function tickOnce() {
+  walkPrices();
+  processPendingOrders();
+  marketEvents.emit(TICK_EVENT, listAllStocks());
+}
 
 let intervalId = null;
 

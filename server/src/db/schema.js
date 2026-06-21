@@ -45,4 +45,24 @@ export const SCHEMA_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_tx_user_time
     ON transactions(user_id, timestamp DESC);
+
+  CREATE TABLE IF NOT EXISTS orders (
+    id           TEXT PRIMARY KEY,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    side         TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    symbol       TEXT NOT NULL REFERENCES stocks(symbol),
+    shares       INTEGER NOT NULL,
+    limit_price  REAL NOT NULL,
+    status       TEXT NOT NULL CHECK (status IN ('PENDING', 'FILLED', 'CANCELLED'))
+                 DEFAULT 'PENDING',
+    fill_price   REAL,
+    created_at   INTEGER NOT NULL,
+    filled_at    INTEGER
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_orders_user_time
+    ON orders(user_id, created_at DESC);
+
+  CREATE INDEX IF NOT EXISTS idx_orders_status
+    ON orders(status);
 `;

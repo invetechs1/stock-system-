@@ -31,8 +31,8 @@ server/                       Express API
     index.js                  entry point (seed, simulator, listen)
     db/                       connection, schema, migrate, seed
     middleware/               auth, validation, error handling
-    services/                 auth, portfolio, watchlist, stocks, simulator
-    routes/                   auth, stocks, portfolio, watchlist
+    services/                 auth, portfolio, orders, watchlist, stocks, simulator, events
+    routes/                   auth, stocks, stream, portfolio, orders, watchlist
   test/                       vitest + supertest suite
   Dockerfile
 client/                       React + Vite frontend
@@ -83,16 +83,21 @@ npm test             # vitest + supertest (in-memory SQLite)
 
 The suite covers auth (register/login/validation/protected routes), trading
 (buy/sell, funds & share validation, transaction logging, per-user isolation),
-and the watchlist.
+the limit-order engine (placement, triggered fills, insufficient-balance
+deferral, cancellation), and the watchlist.
 
 ## Features
 
 - **Accounts** — register/login with JWT auth; bcrypt-hashed passwords.
 - **Per-user portfolios** — each account gets its own cash, holdings, watchlist
   and trade history, fully isolated.
-- **Live market** — 10 seeded stocks with prices that drift every few seconds.
-- **Trading** — buy/sell against virtual cash with server-side validation
+- **Live market** — 10 seeded stocks with prices that drift every few seconds,
+  pushed to the browser in real time over **Server-Sent Events** (no polling).
+- **Market trading** — buy/sell against virtual cash with server-side validation
   (funds, share counts, known symbols), executed in DB transactions.
+- **Limit orders** — place resting BUY/SELL orders that the engine auto-fills on
+  the next tick once the price crosses your limit (and the account can support
+  the fill); cancel any pending order.
 - **Portfolio** — holdings valued at live prices with average cost and
   unrealized gain/loss per position, plus totals.
 - **Watchlist & history** — star stocks to track; every trade is recorded.
@@ -109,10 +114,14 @@ Authenticated routes require an `Authorization: Bearer <token>` header.
 | GET    | `/api/auth/me`                |  ✓   | Current user                     |
 | GET    | `/api/stocks`                 |  –   | All stocks with live quotes      |
 | GET    | `/api/stocks/:symbol`         |  –   | Single stock quote               |
+| GET    | `/api/stream`                 |  –   | SSE stream of live quotes (`tick` events) |
 | GET    | `/api/portfolio`              |  ✓   | Portfolio with live valuation    |
-| POST   | `/api/portfolio/buy`          |  ✓   | Buy `{ symbol, shares }`         |
-| POST   | `/api/portfolio/sell`         |  ✓   | Sell `{ symbol, shares }`        |
+| POST   | `/api/portfolio/buy`          |  ✓   | Market buy `{ symbol, shares }`  |
+| POST   | `/api/portfolio/sell`         |  ✓   | Market sell `{ symbol, shares }` |
 | GET    | `/api/portfolio/transactions` |  ✓   | Trade history                    |
+| GET    | `/api/orders`                 |  ✓   | List limit orders                |
+| POST   | `/api/orders`                 |  ✓   | Place `{ side, symbol, shares, limitPrice }` |
+| DELETE | `/api/orders/:id`             |  ✓   | Cancel a pending order           |
 | GET    | `/api/watchlist`              |  ✓   | Watched stocks with quotes       |
 | POST   | `/api/watchlist`              |  ✓   | Add `{ symbol }`                 |
 | DELETE | `/api/watchlist/:symbol`      |  ✓   | Remove a symbol                  |

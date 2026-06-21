@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../api/client.js';
+import { api, subscribeQuotes } from '../api/client.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import PortfolioSummary from './PortfolioSummary.jsx';
 import Market from './Market.jsx';
 import Holdings from './Holdings.jsx';
 import Watchlist from './Watchlist.jsx';
 import Transactions from './Transactions.jsx';
+import Orders from './Orders.jsx';
 import TradeModal from './TradeModal.jsx';
 
-const REFRESH_MS = 3000;
+// Account data still polls; live quotes arrive over SSE.
+const ACCOUNT_REFRESH_MS = 3000;
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -16,21 +18,23 @@ export default function Dashboard() {
   const [portfolio, setPortfolio] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [trade, setTrade] = useState(null);
   const [error, setError] = useState('');
 
-  const refresh = useCallback(async () => {
+  // Account-scoped data (changes on trades and order fills).
+  const refreshAccount = useCallback(async () => {
     try {
-      const [s, p, w, t] = await Promise.all([
-        api.getStocks(),
+      const [p, w, t, o] = await Promise.all([
         api.getPortfolio(),
         api.getWatchlist(),
-        api.getTransactions()
+        api.getTransactions(),
+        api.getOrders()
       ]);
-      setStocks(s);
       setPortfolio(p);
       setWatchlist(w);
       setTransactions(t);
+      setOrders(o);
       setError('');
     } catch (e) {
       setError(e.message);
@@ -38,31 +42,50 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    const id = setInterval(refresh, REFRESH_MS);
+    refreshAccount();
+    const id = setInterval(refreshAccount, ACCOUNT_REFRESH_MS);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refreshAccount]);
 
-  const handleTrade = async (mode, symbol, shares) => {
+  // Live market quotes via Server-Sent Events.
+  useEffect(() => {
+    const unsubscribe = subscribeQuotes(setStocks);
+    return unsubscribe;
+  }, []);
+
+  const handleMarket = async (mode, symbol, shares) => {
     if (mode === 'BUY') await api.buy(symbol, shares);
     else await api.sell(symbol, shares);
     setTrade(null);
-    await refresh();
+    await refreshAccount();
+  };
+
+  const handleLimit = async (order) => {
+    await api.placeOrder(order);
+    setTrade(null);
+    await refreshAccount();
+  };
+
+  const cancelOrder = async (id) => {
+    await api.cancelOrder(id);
+    await refreshAccount();
   };
 
   const toggleWatch = async (symbol, watched) => {
     if (watched) await api.removeWatch(symbol);
     else await api.addWatch(symbol);
-    await refresh();
+    await refreshAccount();
   };
 
   const watchedSymbols = new Set(watchlist.map((w) => w.symbol));
+  const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
   return (
     <div className="app">
       <header className="topbar">
         <h1>📈 Stock Trading System</h1>
         <div className="topbar-right">
+          <span className="live-dot" title="Live quotes" />
           <span className="muted small">{user?.email}</span>
           <button className="btn ghost" onClick={logout}>
             Sign out
@@ -100,11 +123,18 @@ export default function Dashboard() {
         </section>
 
         <section className="panel">
+          <h2>
+            Open Orders{pendingCount ? <span className="badge">{pendingCount}</span> : null}
+          </h2>
+          <Orders orders={orders} onCancel={cancelOrder} />
+        </section>
+
+        <section className="panel">
           <h2>Watchlist</h2>
           <Watchlist items={watchlist} onRemove={(symbol) => toggleWatch(symbol, true)} />
         </section>
 
-        <section className="panel">
+        <section className="panel wide">
           <h2>Trade History</h2>
           <Transactions transactions={transactions} />
         </section>
@@ -115,7 +145,8 @@ export default function Dashboard() {
           trade={trade}
           cash={portfolio?.cash || 0}
           onClose={() => setTrade(null)}
-          onSubmit={handleTrade}
+          onMarket={handleMarket}
+          onLimit={handleLimit}
         />
       )}
     </div>

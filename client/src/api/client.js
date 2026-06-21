@@ -71,8 +71,29 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ symbol })
     }),
-  removeWatch: (symbol) => request(`/watchlist/${symbol}`, { method: 'DELETE' })
+  removeWatch: (symbol) => request(`/watchlist/${symbol}`, { method: 'DELETE' }),
+
+  // Limit orders
+  getOrders: () => request('/orders'),
+  placeOrder: (order) =>
+    request('/orders', { method: 'POST', body: JSON.stringify(order) }),
+  cancelOrder: (id) => request(`/orders/${id}`, { method: 'DELETE' })
 };
+
+// Subscribe to the live quote stream (Server-Sent Events). Returns an
+// unsubscribe function. Falls back silently if the connection drops; the
+// browser EventSource reconnects automatically.
+export function subscribeQuotes(onQuotes) {
+  const source = new EventSource(`${BASE}/stream`);
+  source.addEventListener('tick', (e) => {
+    try {
+      onQuotes(JSON.parse(e.data));
+    } catch {
+      /* ignore malformed frames */
+    }
+  });
+  return () => source.close();
+}
 
 export function formatMoney(n) {
   return new Intl.NumberFormat('en-US', {
