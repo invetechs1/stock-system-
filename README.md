@@ -31,8 +31,8 @@ server/                       Express API
     index.js                  entry point (seed, simulator, listen)
     db/                       connection, schema, migrate, seed
     middleware/               auth, validation, error handling
-    services/                 auth, portfolio, orders, watchlist, stocks, simulator, events
-    routes/                   auth, stocks, stream, portfolio, orders, watchlist
+    services/                 auth, portfolio, orders, analytics, watchlist, stocks, simulator, events
+    routes/                   auth, stocks, stream, portfolio, orders, leaderboard, watchlist
   test/                       vitest + supertest suite
   Dockerfile
 client/                       React + Vite frontend
@@ -100,6 +100,9 @@ deferral, cancellation), and the watchlist.
   the fill); cancel any pending order.
 - **Portfolio** — holdings valued at live prices with average cost and
   unrealized gain/loss per position, plus totals.
+- **Performance chart** — net worth is snapshotted on an interval; the dashboard
+  renders the history as a live SVG sparkline.
+- **Leaderboard** — all accounts ranked by net worth (emails masked).
 - **Watchlist & history** — star stocks to track; every trade is recorded.
 
 ## API reference
@@ -119,6 +122,8 @@ Authenticated routes require an `Authorization: Bearer <token>` header.
 | POST   | `/api/portfolio/buy`          |  ✓   | Market buy `{ symbol, shares }`  |
 | POST   | `/api/portfolio/sell`         |  ✓   | Market sell `{ symbol, shares }` |
 | GET    | `/api/portfolio/transactions` |  ✓   | Trade history                    |
+| GET    | `/api/portfolio/history`      |  ✓   | Net-worth snapshots over time    |
+| GET    | `/api/leaderboard`            |  ✓   | Accounts ranked by net worth     |
 | GET    | `/api/orders`                 |  ✓   | List limit orders                |
 | POST   | `/api/orders`                 |  ✓   | Place `{ side, symbol, shares, limitPrice }` |
 | DELETE | `/api/orders/:id`             |  ✓   | Cancel a pending order           |
@@ -138,6 +143,7 @@ All variables are validated at startup (see `server/src/config.js`).
 | `JWT_SECRET`     | dev fallback                  | **Required in production** (min 16 chars) |
 | `JWT_EXPIRES_IN` | `7d`                          | Token lifetime                       |
 | `TICK_MS`        | `3000`                        | Price simulator tick interval (ms)   |
+| `SNAPSHOT_MS`    | `60000`                       | Net-worth snapshot interval (ms)     |
 | `STARTING_CASH`  | `100000`                      | Virtual cash per new account         |
 | `CORS_ORIGIN`    | `*`                           | Allowed origins (`*` or CSV)         |
 | `BCRYPT_ROUNDS`  | `10`                          | Password hash cost factor            |

@@ -7,6 +7,8 @@ import Holdings from './Holdings.jsx';
 import Watchlist from './Watchlist.jsx';
 import Transactions from './Transactions.jsx';
 import Orders from './Orders.jsx';
+import PerformanceChart from './PerformanceChart.jsx';
+import Leaderboard from './Leaderboard.jsx';
 import TradeModal from './TradeModal.jsx';
 
 // Account data still polls; live quotes arrive over SSE.
@@ -19,22 +21,28 @@ export default function Dashboard() {
   const [watchlist, setWatchlist] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
   const [trade, setTrade] = useState(null);
   const [error, setError] = useState('');
 
   // Account-scoped data (changes on trades and order fills).
   const refreshAccount = useCallback(async () => {
     try {
-      const [p, w, t, o] = await Promise.all([
+      const [p, w, t, o, h, lb] = await Promise.all([
         api.getPortfolio(),
         api.getWatchlist(),
         api.getTransactions(),
-        api.getOrders()
+        api.getOrders(),
+        api.getHistory(),
+        api.getLeaderboard()
       ]);
       setPortfolio(p);
       setWatchlist(w);
       setTransactions(t);
       setOrders(o);
+      setHistory(h);
+      setLeaderboard(lb);
       setError('');
     } catch (e) {
       setError(e.message);
@@ -80,6 +88,12 @@ export default function Dashboard() {
   const watchedSymbols = new Set(watchlist.map((w) => w.symbol));
   const pendingCount = orders.filter((o) => o.status === 'PENDING').length;
 
+  // Append the current live value so the line moves between snapshots.
+  const chartPoints =
+    portfolio != null
+      ? [...history, { value: portfolio.totalValue, timestamp: Date.now() }]
+      : history;
+
   return (
     <div className="app">
       <header className="topbar">
@@ -98,6 +112,11 @@ export default function Dashboard() {
       <PortfolioSummary portfolio={portfolio} />
 
       <div className="grid">
+        <section className="panel wide">
+          <h2>Performance</h2>
+          <PerformanceChart points={chartPoints} />
+        </section>
+
         <section className="panel">
           <h2>Market</h2>
           <Market
@@ -132,6 +151,11 @@ export default function Dashboard() {
         <section className="panel">
           <h2>Watchlist</h2>
           <Watchlist items={watchlist} onRemove={(symbol) => toggleWatch(symbol, true)} />
+        </section>
+
+        <section className="panel">
+          <h2>Leaderboard</h2>
+          <Leaderboard entries={leaderboard} />
         </section>
 
         <section className="panel wide">

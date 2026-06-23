@@ -9,6 +9,7 @@ import {
   sell,
   getTransactions
 } from '../services/portfolioService.js';
+import { getHistory } from '../services/analyticsService.js';
 
 const router = Router();
 
@@ -56,6 +57,14 @@ router.get(
   '/transactions',
   asyncHandler(async (req, res) => {
     res.json(getTransactions(req.userId));
+  })
+);
+
+// GET /api/portfolio/history - net-worth snapshots over time
+router.get(
+  '/history',
+  asyncHandler(async (req, res) => {
+    res.json(getHistory(req.userId));
   })
 );
 

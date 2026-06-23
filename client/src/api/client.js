@@ -55,6 +55,8 @@ export const api = {
   getStocks: () => request('/stocks'),
   getPortfolio: () => request('/portfolio'),
   getTransactions: () => request('/portfolio/transactions'),
+  getHistory: () => request('/portfolio/history'),
+  getLeaderboard: () => request('/leaderboard'),
   buy: (symbol, shares) =>
     request('/portfolio/buy', {
       method: 'POST',

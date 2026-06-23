@@ -14,6 +14,8 @@ const schema = z.object({
   JWT_EXPIRES_IN: z.string().default('7d'),
   // Price simulator tick interval in milliseconds.
   TICK_MS: z.coerce.number().int().positive().default(3000),
+  // How often each user's net-worth is snapshotted for history charts.
+  SNAPSHOT_MS: z.coerce.number().int().positive().default(60000),
   // Starting virtual cash granted to each new account.
   STARTING_CASH: z.coerce.number().positive().default(100000),
   // Comma-separated list of allowed CORS origins, or "*".

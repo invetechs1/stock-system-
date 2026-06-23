@@ -65,4 +65,13 @@ export const SCHEMA_SQL = `
 
   CREATE INDEX IF NOT EXISTS idx_orders_status
     ON orders(status);
+
+  CREATE TABLE IF NOT EXISTS portfolio_snapshots (
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    value      REAL NOT NULL,
+    timestamp  INTEGER NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_snapshots_user_time
+    ON portfolio_snapshots(user_id, timestamp);
 `;
