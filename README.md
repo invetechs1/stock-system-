@@ -15,7 +15,8 @@ real database.
   validation, **helmet** + **rate limiting**, structured JSON logging, and a
   background price simulator.
 - **Frontend** — React (Vite) SPA with an auth flow (register/login), token
-  session handling, and a live trading dashboard.
+  session handling, and a live trading dashboard driven by Server-Sent Events
+  (quotes) and an authenticated WebSocket channel (account updates).
 - **Ops** — Dockerfiles for both tiers, **docker-compose** (nginx-served client
   + API + persistent volume), and a **GitHub Actions** CI pipeline (tests, build,
   image builds).
@@ -28,10 +29,11 @@ server/                       Express API
     config.js                 env validation (zod)
     logger.js                 structured JSON logger
     app.js                    express app factory (security, routes)
+    ws.js                     authenticated WebSocket server (live account updates)
     index.js                  entry point (seed, simulator, listen)
     db/                       connection, schema, migrate, migrations, seed
     middleware/               auth, validation, error handling
-    services/                 auth, portfolio, orders, analytics, watchlist, stocks, simulator, events
+    services/                 auth, portfolio, orders, analytics, watchlist, stocks, simulator, events, userEvents
     routes/                   auth, stocks, stream, portfolio, orders, leaderboard, watchlist
   test/                       vitest + supertest suite
   Dockerfile
@@ -84,7 +86,8 @@ npm test             # vitest + supertest (in-memory SQLite)
 The suite covers auth (register/login/validation/protected routes), trading
 (buy/sell, funds & share validation, transaction logging, per-user isolation),
 the order engine (limit/stop placement, triggered fills, insufficient-balance
-deferral, time-in-force expiry, cancellation), and the watchlist.
+deferral, time-in-force expiry, cancellation), live WebSocket updates
+(authenticated push on trades and server-side fills), and the watchlist.
 
 ## Features
 
@@ -105,6 +108,9 @@ deferral, time-in-force expiry, cancellation), and the watchlist.
 - **Performance chart** — net worth is snapshotted on an interval; the dashboard
   renders the history as a live SVG sparkline.
 - **Leaderboard** — all accounts ranked by net worth (emails masked).
+- **Live account updates** — trades and server-side order fills/expiries push
+  instantly to the browser over an authenticated WebSocket channel (the account
+  poll is just a slow safety net).
 - **Watchlist & history** — star stocks to track; every trade is recorded.
 
 ## API reference
@@ -120,6 +126,7 @@ Authenticated routes require an `Authorization: Bearer <token>` header.
 | GET    | `/api/stocks`                 |  –   | All stocks with live quotes      |
 | GET    | `/api/stocks/:symbol`         |  –   | Single stock quote               |
 | GET    | `/api/stream`                 |  –   | SSE stream of live quotes (`tick` events) |
+| WS     | `/ws?token=<jwt>`             |  ✓   | Live per-user account events (trades, fills) |
 | GET    | `/api/portfolio`              |  ✓   | Portfolio with live valuation    |
 | POST   | `/api/portfolio/buy`          |  ✓   | Market buy `{ symbol, shares }`  |
 | POST   | `/api/portfolio/sell`         |  ✓   | Market sell `{ symbol, shares }` |

@@ -4,6 +4,7 @@ import { validate } from '../middleware/validate.js';
 import { requireAuth } from '../middleware/auth.js';
 import { asyncHandler } from '../middleware/error.js';
 import { placeOrder, getOrders, cancelOrder } from '../services/orderService.js';
+import { notifyUser } from '../services/userEvents.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -31,12 +32,14 @@ router.get(
   })
 );
 
-// POST /api/orders - place a limit order
+// POST /api/orders - place a limit or stop order
 router.post(
   '/',
   validate(orderBody),
   asyncHandler(async (req, res) => {
-    res.status(201).json(placeOrder(req.userId, req.body));
+    const placed = placeOrder(req.userId, req.body);
+    notifyUser(req.userId, { type: 'orders' });
+    res.status(201).json(placed);
   })
 );
 
@@ -44,7 +47,9 @@ router.post(
 router.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    res.json(cancelOrder(req.userId, req.params.id));
+    const cancelled = cancelOrder(req.userId, req.params.id);
+    notifyUser(req.userId, { type: 'orders' });
+    res.json(cancelled);
   })
 );
 

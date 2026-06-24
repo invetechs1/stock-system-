@@ -10,6 +10,7 @@ import {
   getTransactions
 } from '../services/portfolioService.js';
 import { getHistory } from '../services/analyticsService.js';
+import { notifyUser } from '../services/userEvents.js';
 
 const router = Router();
 
@@ -39,7 +40,9 @@ router.post(
   '/buy',
   validate(order),
   asyncHandler(async (req, res) => {
-    res.json(buy(req.userId, req.body.symbol, req.body.shares));
+    const result = buy(req.userId, req.body.symbol, req.body.shares);
+    notifyUser(req.userId, { type: 'trade' });
+    res.json(result);
   })
 );
 
@@ -48,7 +51,9 @@ router.post(
   '/sell',
   validate(order),
   asyncHandler(async (req, res) => {
-    res.json(sell(req.userId, req.body.symbol, req.body.shares));
+    const result = sell(req.userId, req.body.symbol, req.body.shares);
+    notifyUser(req.userId, { type: 'trade' });
+    res.json(result);
   })
 );
 

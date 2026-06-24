@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, subscribeQuotes } from '../api/client.js';
+import { api, subscribeQuotes, connectUserChannel } from '../api/client.js';
 import { useAuth } from '../auth/AuthContext.jsx';
 import PortfolioSummary from './PortfolioSummary.jsx';
 import Market from './Market.jsx';
@@ -11,8 +11,9 @@ import PerformanceChart from './PerformanceChart.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import TradeModal from './TradeModal.jsx';
 
-// Account data still polls; live quotes arrive over SSE.
-const ACCOUNT_REFRESH_MS = 3000;
+// Account changes arrive instantly over the WebSocket channel; this slow poll
+// is just a safety net in case the socket drops. Live quotes arrive over SSE.
+const ACCOUNT_REFRESH_MS = 20000;
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
@@ -60,6 +61,13 @@ export default function Dashboard() {
     const unsubscribe = subscribeQuotes(setStocks);
     return unsubscribe;
   }, []);
+
+  // Live per-user account updates via WebSocket: refetch on any event so trades
+  // and server-side order fills reflect immediately.
+  useEffect(() => {
+    const disconnect = connectUserChannel(() => refreshAccount());
+    return disconnect;
+  }, [refreshAccount]);
 
   const handleMarket = async (mode, symbol, shares) => {
     if (mode === 'BUY') await api.buy(symbol, shares);

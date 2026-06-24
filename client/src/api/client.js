@@ -97,6 +97,42 @@ export function subscribeQuotes(onQuotes) {
   return () => source.close();
 }
 
+// Open the authenticated per-user WebSocket channel for live account updates
+// (trades, order fills/expiry). Calls onEvent for each message and reconnects
+// automatically. Returns a disconnect function.
+export function connectUserChannel(onEvent) {
+  const token = tokenStore.get();
+  if (!token) return () => {};
+
+  let socket;
+  let retryTimer;
+  let closed = false;
+
+  const open = () => {
+    const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    socket = new WebSocket(
+      `${proto}://${window.location.host}/ws?token=${encodeURIComponent(token)}`
+    );
+    socket.onmessage = (e) => {
+      try {
+        onEvent(JSON.parse(e.data));
+      } catch {
+        /* ignore malformed frames */
+      }
+    };
+    socket.onclose = () => {
+      if (!closed) retryTimer = setTimeout(open, 2000);
+    };
+  };
+  open();
+
+  return () => {
+    closed = true;
+    clearTimeout(retryTimer);
+    socket?.close();
+  };
+}
+
 export function formatMoney(n) {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',

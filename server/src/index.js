@@ -2,6 +2,7 @@ import { config } from './config.js';
 import { logger } from './logger.js';
 import { seed } from './db/seed.js';
 import { createApp } from './app.js';
+import { attachWebSocket } from './ws.js';
 import { startSimulator, stopSimulator } from './services/priceSimulator.js';
 import { startSnapshots, stopSnapshots } from './services/analyticsService.js';
 
@@ -17,6 +18,7 @@ const server = app.listen(config.PORT, () => {
     env: config.NODE_ENV
   });
 });
+attachWebSocket(server);
 
 function shutdown(signal) {
   logger.info('Shutting down', { signal });
