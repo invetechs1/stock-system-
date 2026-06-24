@@ -29,7 +29,7 @@ server/                       Express API
     logger.js                 structured JSON logger
     app.js                    express app factory (security, routes)
     index.js                  entry point (seed, simulator, listen)
-    db/                       connection, schema, migrate, seed
+    db/                       connection, schema, migrate, migrations, seed
     middleware/               auth, validation, error handling
     services/                 auth, portfolio, orders, analytics, watchlist, stocks, simulator, events
     routes/                   auth, stocks, stream, portfolio, orders, leaderboard, watchlist
@@ -83,8 +83,8 @@ npm test             # vitest + supertest (in-memory SQLite)
 
 The suite covers auth (register/login/validation/protected routes), trading
 (buy/sell, funds & share validation, transaction logging, per-user isolation),
-the limit-order engine (placement, triggered fills, insufficient-balance
-deferral, cancellation), and the watchlist.
+the order engine (limit/stop placement, triggered fills, insufficient-balance
+deferral, time-in-force expiry, cancellation), and the watchlist.
 
 ## Features
 
@@ -95,9 +95,11 @@ deferral, cancellation), and the watchlist.
   pushed to the browser in real time over **Server-Sent Events** (no polling).
 - **Market trading** — buy/sell against virtual cash with server-side validation
   (funds, share counts, known symbols), executed in DB transactions.
-- **Limit orders** — place resting BUY/SELL orders that the engine auto-fills on
-  the next tick once the price crosses your limit (and the account can support
-  the fill); cancel any pending order.
+- **Limit & stop orders** — place resting BUY/SELL orders that the engine
+  auto-fills on the next tick once the price crosses the trigger (limit fills on
+  a favourable move; stop fills on a breakout/stop-loss move) and the account can
+  support the fill. Optional **time-in-force** expires unfilled orders; cancel any
+  pending order at any time.
 - **Portfolio** — holdings valued at live prices with average cost and
   unrealized gain/loss per position, plus totals.
 - **Performance chart** — net worth is snapshotted on an interval; the dashboard
@@ -124,9 +126,12 @@ Authenticated routes require an `Authorization: Bearer <token>` header.
 | GET    | `/api/portfolio/transactions` |  ✓   | Trade history                    |
 | GET    | `/api/portfolio/history`      |  ✓   | Net-worth snapshots over time    |
 | GET    | `/api/leaderboard`            |  ✓   | Accounts ranked by net worth     |
-| GET    | `/api/orders`                 |  ✓   | List limit orders                |
-| POST   | `/api/orders`                 |  ✓   | Place `{ side, symbol, shares, limitPrice }` |
+| GET    | `/api/orders`                 |  ✓   | List orders                      |
+| POST   | `/api/orders`                 |  ✓   | Place `{ side, type?, symbol, shares, limitPrice, expiresAt? }` |
 | DELETE | `/api/orders/:id`             |  ✓   | Cancel a pending order           |
+
+`type` is `LIMIT` (default) or `STOP`; `expiresAt` is an optional epoch-ms
+time-in-force (omit for good-till-cancel).
 | GET    | `/api/watchlist`              |  ✓   | Watched stocks with quotes       |
 | POST   | `/api/watchlist`              |  ✓   | Add `{ symbol }`                 |
 | DELETE | `/api/watchlist/:symbol`      |  ✓   | Remove a symbol                  |

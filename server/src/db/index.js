@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdirSync } from 'node:fs';
 import { config } from '../config.js';
 import { SCHEMA_SQL } from './schema.js';
+import { applyMigrations } from './migrations.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -25,3 +26,6 @@ db.pragma('foreign_keys = ON');
 // Apply the schema eagerly on connection so that prepared statements created
 // at service module-load time always have their tables available.
 db.exec(SCHEMA_SQL);
+
+// Upgrade any pre-existing tables to the latest shape (no-op for fresh DBs).
+applyMigrations(db);

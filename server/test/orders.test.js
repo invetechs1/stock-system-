@@ -112,6 +112,72 @@ describe('limit orders', () => {
     expect(again.status).toBe(400);
   });
 
+  it('fills a triggered STOP-BUY (breakout) order', async () => {
+    const price = await priceOf('AMZN');
+    const place = await request(app)
+      .post('/api/orders')
+      .set('Authorization', auth(token))
+      // STOP BUY triggers when price >= stop; stop below market → triggered now.
+      .send({ side: 'BUY', type: 'STOP', symbol: 'AMZN', shares: 2, limitPrice: price * 0.5 });
+    expect(place.body.type).toBe('STOP');
+
+    processPendingOrders();
+
+    const orders = await request(app)
+      .get('/api/orders')
+      .set('Authorization', auth(token));
+    expect(orders.body.find((o) => o.id === place.body.id).status).toBe('FILLED');
+  });
+
+  it('does not fill a STOP-SELL until price falls to the stop', async () => {
+    // Acquire shares to sell.
+    const price = await priceOf('META');
+    await request(app)
+      .post('/api/portfolio/buy')
+      .set('Authorization', auth(token))
+      .send({ symbol: 'META', shares: 1 });
+
+    // STOP SELL triggers when price <= stop; stop far below market → not yet.
+    const place = await request(app)
+      .post('/api/orders')
+      .set('Authorization', auth(token))
+      .send({ side: 'SELL', type: 'STOP', symbol: 'META', shares: 1, limitPrice: price * 0.01 });
+
+    processPendingOrders();
+
+    const orders = await request(app)
+      .get('/api/orders')
+      .set('Authorization', auth(token));
+    expect(orders.body.find((o) => o.id === place.body.id).status).toBe('PENDING');
+  });
+
+  it('expires an order past its time-in-force', async () => {
+    const price = await priceOf('JPM');
+    const expiresAt = Date.now() + 60_000;
+    const place = await request(app)
+      .post('/api/orders')
+      .set('Authorization', auth(token))
+      // Below-market BUY limit so it would otherwise rest as PENDING.
+      .send({ side: 'BUY', symbol: 'JPM', shares: 1, limitPrice: price * 0.5, expiresAt });
+    expect(place.body.expiresAt).toBe(expiresAt);
+
+    // Advance the clock past expiry and sweep.
+    processPendingOrders(expiresAt + 1);
+
+    const orders = await request(app)
+      .get('/api/orders')
+      .set('Authorization', auth(token));
+    expect(orders.body.find((o) => o.id === place.body.id).status).toBe('EXPIRED');
+  });
+
+  it('rejects an expiry in the past', async () => {
+    const res = await request(app)
+      .post('/api/orders')
+      .set('Authorization', auth(token))
+      .send({ side: 'BUY', symbol: 'JPM', shares: 1, limitPrice: 10, expiresAt: Date.now() - 1000 });
+    expect(res.status).toBe(400);
+  });
+
   it('validates order input and requires auth', async () => {
     const noAuth = await request(app)
       .post('/api/orders')

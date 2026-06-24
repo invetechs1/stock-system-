@@ -10,6 +10,7 @@ router.use(requireAuth);
 
 const orderBody = z.object({
   side: z.enum(['BUY', 'SELL']),
+  type: z.enum(['LIMIT', 'STOP']).default('LIMIT'),
   symbol: z
     .string()
     .trim()
@@ -17,7 +18,9 @@ const orderBody = z.object({
     .max(10)
     .transform((s) => s.toUpperCase()),
   shares: z.coerce.number().int().positive().max(1_000_000),
-  limitPrice: z.coerce.number().positive().max(1_000_000)
+  limitPrice: z.coerce.number().positive().max(1_000_000),
+  // Optional time-in-force as an epoch-millisecond expiry; omit for good-till-cancel.
+  expiresAt: z.coerce.number().int().positive().optional()
 });
 
 // GET /api/orders

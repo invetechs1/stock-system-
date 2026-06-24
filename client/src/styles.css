@@ -430,7 +430,8 @@ body {
   color: var(--muted);
 }
 
-.modal input {
+.modal input,
+.modal select {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 7px;

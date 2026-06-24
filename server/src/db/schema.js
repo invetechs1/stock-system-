@@ -50,12 +50,14 @@ export const SCHEMA_SQL = `
     id           TEXT PRIMARY KEY,
     user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     side         TEXT NOT NULL CHECK (side IN ('BUY', 'SELL')),
+    type         TEXT NOT NULL DEFAULT 'LIMIT' CHECK (type IN ('LIMIT', 'STOP')),
     symbol       TEXT NOT NULL REFERENCES stocks(symbol),
     shares       INTEGER NOT NULL,
     limit_price  REAL NOT NULL,
-    status       TEXT NOT NULL CHECK (status IN ('PENDING', 'FILLED', 'CANCELLED'))
+    status       TEXT NOT NULL CHECK (status IN ('PENDING', 'FILLED', 'CANCELLED', 'EXPIRED'))
                  DEFAULT 'PENDING',
     fill_price   REAL,
+    expires_at   INTEGER,
     created_at   INTEGER NOT NULL,
     filled_at    INTEGER
   );

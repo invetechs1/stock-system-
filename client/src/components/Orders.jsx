@@ -7,10 +7,10 @@ export default function Orders({ orders, onCancel }) {
     <table className="table">
       <thead>
         <tr>
-          <th>Side</th>
+          <th>Order</th>
           <th>Symbol</th>
           <th className="num">Shares</th>
-          <th className="num">Limit</th>
+          <th className="num">Trigger</th>
           <th>Status</th>
           <th></th>
         </tr>
@@ -21,7 +21,13 @@ export default function Orders({ orders, onCancel }) {
             <td>
               <span className={`tag ${o.side === 'BUY' ? 'buy' : 'sell'}`}>
                 {o.side}
-              </span>
+              </span>{' '}
+              <span className="muted small">{(o.type || 'LIMIT').toLowerCase()}</span>
+              {o.expiresAt ? (
+                <div className="muted small">
+                  exp {new Date(o.expiresAt).toLocaleString()}
+                </div>
+              ) : null}
             </td>
             <td>
               <strong>{o.symbol}</strong>
