@@ -1,0 +1,28 @@
+services:
+  server:
+    image: bassir-stock-system-server:latest
+    container_name: bassir-stock-system-server
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in your .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      TICK_MS: ${TICK_MS:-3000}
+      SNAPSHOT_MS: ${SNAPSHOT_MS:-60000}
+      STARTING_CASH: ${STARTING_CASH:-100000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    volumes:
+      - stock-data:/app/data
+    restart: unless-stopped
+
+  client:
+    image: bassir-stock-system-client:latest
+    container_name: bassir-stock-system-client
+    depends_on:
+      - server
+    ports:
+      - "${WEB_PORT:-8085}:80"
+    restart: unless-stopped
+
+volumes:
+  stock-data:

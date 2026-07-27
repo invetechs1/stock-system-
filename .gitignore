@@ -11,3 +11,6 @@ server/data/
 *.db
 *.db-shm
 *.db-wal
+
+# Deployment build artifact (rebuilt by deployment.md each time)
+*.tar
